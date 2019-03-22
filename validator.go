@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"github.com/google/uuid"
 	"io/ioutil"
 	"net"
 	"net/url"
@@ -1102,6 +1103,7 @@ func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options 
 					reflect.Float32, reflect.Float64:
 
 					field := fmt.Sprint(v) // make value into string, then validate with regex
+
 					if result := validatefunc(field, ps[1:]...); (!result && !negate) || (result && negate) {
 						if customMsgExists {
 							return false, Error{t.Name, TruncatingErrorf(validatorStruct.customErrorMessage, field, validator), customMsgExists, stripParams(validatorSpec), []string{}}
@@ -1171,6 +1173,17 @@ func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options 
 		return result, nil
 	case reflect.Slice, reflect.Array:
 		result := true
+
+		// If this is a UUID, we just want to convert it now. Not break it into tiny pieces with no meaning
+		if uuidData, ok := v.Interface().(uuid.UUID); ok {
+			var err error
+			result, err = typeCheck(reflect.ValueOf(uuidData.String()), t, o, options)
+
+			if err != nil {
+				return false, err
+			}
+		}
+
 		for i := 0; i < v.Len(); i++ {
 			var resultItem bool
 			var err error
