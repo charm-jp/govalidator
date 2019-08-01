@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"git.charm2012.local/Charm/charmtypes"
 	"github.com/google/uuid"
 	"io/ioutil"
 	"net"
@@ -1176,6 +1177,16 @@ func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options 
 
 		// If this is a UUID, we just want to convert it now. Not break it into tiny pieces with no meaning
 		if uuidData, ok := v.Interface().(uuid.UUID); ok {
+			var err error
+			result, err = typeCheck(reflect.ValueOf(uuidData.String()), t, o, options)
+
+			if err != nil {
+				return false, err
+			}
+		}
+
+		// If this is a MYUUID, we just want to convert it now. Not break it into tiny pieces with no meaning
+		if uuidData, ok := v.Interface().(charmtypes.MYUUID); ok {
 			var err error
 			result, err = typeCheck(reflect.ValueOf(uuidData.String()), t, o, options)
 
