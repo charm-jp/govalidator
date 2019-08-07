@@ -1,6 +1,6 @@
-git.charm2012.local/Charm/charmtypes v0.0.0-20190731093836-3999c37b96ae h1:xjLb/bjbUPokFxHqawDZaTaJ17yHe9SdCEoWhCOL9Yo=
-git.charm2012.local/Charm/charmtypes v0.0.0-20190731093836-3999c37b96ae/go.mod h1:d56GbRI5MKLNkprSyECn3AUuST4Vr8lOi9QHT2Hw8SM=
 github.com/cnf/structhash v0.0.0-20180104161610-62a607eb0224 h1:rnCKRrdSBqc061l0CDuYB+7X3w6w8IK/VCSChJXv62g=
 github.com/cnf/structhash v0.0.0-20180104161610-62a607eb0224/go.mod h1:pCxVEbcm3AMg7ejXyorUXi6HQCzOIBf7zEDVPtw0/U4=
 github.com/google/uuid v1.1.1 h1:Gkbcsh/GbpXz7lPftLA3P6TYMwjCLYm83jiFQZF/3gY=
 github.com/google/uuid v1.1.1/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
+gitlab.dev.charm.internal/charm/charmtypes v0.0.0-20190807080556-9ac99499580a h1:F87/uDK7KSduoa3rDOqWjEnCuFA8ksLMg25ttU/SssM=
+gitlab.dev.charm.internal/charm/charmtypes v0.0.0-20190807080556-9ac99499580a/go.mod h1:RNjNreGG7YLFwGQpLCzFMEZSdpRKqd6edo/Tj6NqxoQ=

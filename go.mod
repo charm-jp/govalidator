@@ -1,6 +1,6 @@
-module git.charm2012.local/Charm/govalidator
+module gitlab.dev.charm.internal/charm/govalidator
 
 require (
-	git.charm2012.local/Charm/charmtypes v0.0.0-20190731093836-3999c37b96ae
 	github.com/google/uuid v1.1.1
+	gitlab.dev.charm.internal/charm/charmtypes v0.0.0-20190807080556-9ac99499580a
 )
