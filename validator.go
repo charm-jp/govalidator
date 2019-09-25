@@ -1029,11 +1029,13 @@ func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options 
 	optionsOrder := options.orderedKeys()
 	for _, validatorName := range optionsOrder {
 		// If there are any params, take them off the name
-		result := paramsRegexp.FindStringSubmatch(validatorName)
+		paramAndNameRegexp := regexp.MustCompile("^([a-zA-Z0-9]*)(\\(([a-zA-Z0-9]*)\\))?$")
+		result := paramAndNameRegexp.FindStringSubmatch(validatorName)
 		var params string
 
-		if len(result) > 1 {
-			params = result[1]
+		if len(result) > 3 {
+			params = result[3]
+			validatorName = result[1]
 		}
 
 		validatorStruct := options[validatorName]
