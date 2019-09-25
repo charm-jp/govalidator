@@ -1028,11 +1028,20 @@ func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options 
 	var customTypeErrors Errors
 	optionsOrder := options.orderedKeys()
 	for _, validatorName := range optionsOrder {
+		// If there are any params, take them off the name
+		result := paramsRegexp.FindStringSubmatch(validatorName)
+		var params string
+
+		if len(result) > 1 {
+			params = result[1]
+		}
+
 		validatorStruct := options[validatorName]
 		if validatefunc, ok := CustomTypeTagMap.Get(validatorName); ok {
+			// Take any params from the name
 			delete(options, validatorName)
 
-			if result := validatefunc(v.Interface(), o.Interface()); !result {
+			if result := validatefunc(v.Interface(), o.Interface(), params); !result {
 				if len(validatorStruct.customErrorMessage) > 0 {
 					customTypeErrors = append(customTypeErrors, Error{Name: t.Name, Err: TruncatingErrorf(validatorStruct.customErrorMessage, fmt.Sprint(v), validatorName), CustomErrorMessageExists: true, Validator: stripParams(validatorName)})
 					continue

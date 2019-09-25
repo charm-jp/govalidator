@@ -8,10 +8,10 @@ import (
 )
 
 func init() {
-	CustomTypeTagMap.Set("customFalseValidator", CustomTypeValidator(func(i interface{}, o interface{}) bool {
+	CustomTypeTagMap.Set("customFalseValidator", CustomTypeValidator(func(i interface{}, o interface{}, params string) bool {
 		return false
 	}))
-	CustomTypeTagMap.Set("customTrueValidator", CustomTypeValidator(func(i interface{}, o interface{}) bool {
+	CustomTypeTagMap.Set("customTrueValidator", CustomTypeValidator(func(i interface{}, o interface{}, params string) bool {
 		return true
 	}))
 }
@@ -645,7 +645,7 @@ func TestIsExistingEmail(t *testing.T) {
 		{"foo@bar.com", true},
 		{"foo@bar.com.au", true},
 		{"foo+bar@bar.com", true},
-		{"foo@bar.coffee", true},
+		{"foo@bar.coffee", false},
 		{"foo@bar.coffee..coffee", false},
 		{"invalidemail@", false},
 		{"invalid.com", false},
@@ -2449,7 +2449,7 @@ func TestStructWithCustomByteArray(t *testing.T) {
 	t.Parallel()
 
 	// add our custom byte array validator that fails when the byte array is pristine (all zeroes)
-	CustomTypeTagMap.Set("customByteArrayValidator", CustomTypeValidator(func(i interface{}, o interface{}) bool {
+	CustomTypeTagMap.Set("customByteArrayValidator", CustomTypeValidator(func(i interface{}, o interface{}, params string) bool {
 		switch v := o.(type) {
 		case StructWithCustomByteArray:
 			if len(v.Email) > 0 {
@@ -2471,7 +2471,7 @@ func TestStructWithCustomByteArray(t *testing.T) {
 		}
 		return false
 	}))
-	CustomTypeTagMap.Set("customMinLengthValidator", CustomTypeValidator(func(i interface{}, o interface{}) bool {
+	CustomTypeTagMap.Set("customMinLengthValidator", CustomTypeValidator(func(i interface{}, o interface{}, params string) bool {
 		switch v := o.(type) {
 		case StructWithCustomByteArray:
 			return len(v.ID) >= v.CustomMinLength
@@ -3095,7 +3095,7 @@ func TestErrorsByField(t *testing.T) {
 		ID    string `valid:"falseValidation"`
 	}
 
-	CustomTypeTagMap.Set("falseValidation", CustomTypeValidator(func(i interface{}, o interface{}) bool {
+	CustomTypeTagMap.Set("falseValidation", CustomTypeValidator(func(i interface{}, o interface{}, params string) bool {
 		return false
 	}))
 
@@ -3326,7 +3326,7 @@ func TestIsCIDR(t *testing.T) {
 
 func TestOptionalCustomValidators(t *testing.T) {
 
-	CustomTypeTagMap.Set("f2", CustomTypeValidator(func(i interface{}, o interface{}) bool {
+	CustomTypeTagMap.Set("f2", CustomTypeValidator(func(i interface{}, o interface{}, params string) bool {
 		return false
 	}))
 
