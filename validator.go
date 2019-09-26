@@ -737,7 +737,7 @@ func PrependPathToErrors(err error, path string) error {
 
 // ValidateStruct use tags for fields.
 // result will be equal to `false` if there are any errors.
-func ValidateStruct(s interface{}) (bool, error) {
+func ValidateStruct(s interface{}, operation string) (bool, error) {
 	if s == nil {
 		return true, nil
 	}
@@ -766,13 +766,13 @@ func ValidateStruct(s interface{}) (bool, error) {
 			(valueField.Kind() == reflect.Ptr && valueField.Elem().Kind() == reflect.Struct)) &&
 			typeField.Tag.Get(tagName) != "-" {
 			var err error
-			structResult, err = ValidateStruct(valueField.Interface())
+			structResult, err = ValidateStruct(valueField.Interface(), operation)
 			if err != nil {
 				err = PrependPathToErrors(err, typeField.Name)
 				errs = append(errs, err)
 			}
 		}
-		resultField, err2 := typeCheck(valueField, typeField, val, nil)
+		resultField, err2 := typeCheck(valueField, typeField, val, nil, operation)
 		if err2 != nil {
 
 			// Replace structure name with JSON name if there is a tag on the variable
@@ -811,16 +811,33 @@ func parseTagIntoMap(tag string) tagOptionsMap {
 	options := strings.Split(tag, ",")
 
 	for i, option := range options {
+		var splitScopeOptions []string
 		option = strings.TrimSpace(option)
+
+		scopeOptions := strings.Split(option, "*")
+		if len(scopeOptions) > 1 {
+			option = scopeOptions[1]
+			splitScopeOptions = strings.Split(scopeOptions[0], "|")
+		}
 
 		validationOptions := strings.Split(option, "~")
 		if !isValidTag(validationOptions[0]) {
 			continue
 		}
 		if len(validationOptions) == 2 {
-			optionsMap[validationOptions[0]] = tagOption{validationOptions[0], validationOptions[1], i}
+			optionsMap[validationOptions[0]] = tagOption{
+				validationOptions[0],
+				validationOptions[1],
+				i,
+				splitScopeOptions,
+			}
 		} else {
-			optionsMap[validationOptions[0]] = tagOption{validationOptions[0], "", i}
+			optionsMap[validationOptions[0]] = tagOption{
+				validationOptions[0],
+				"",
+				i,
+				splitScopeOptions,
+			}
 		}
 	}
 	return optionsMap
@@ -970,7 +987,7 @@ func IsIn(str string, params ...string) bool {
 	return false
 }
 
-func checkRequired(v reflect.Value, t reflect.StructField, options tagOptionsMap) (bool, error) {
+func checkRequired(v reflect.Value, t reflect.StructField, options tagOptionsMap, operation string) (bool, error) {
 	if nilPtrAllowedByRequired {
 		k := v.Kind()
 		if (k == reflect.Ptr || k == reflect.Interface) && v.IsNil() {
@@ -979,6 +996,11 @@ func checkRequired(v reflect.Value, t reflect.StructField, options tagOptionsMap
 	}
 
 	if requiredOption, isRequired := options["required"]; isRequired {
+		// Check that we're within scope
+		if !options["required"].isInScope(operation) {
+			return true, nil
+		}
+
 		if len(requiredOption.customErrorMessage) > 0 {
 			return false, Error{t.Name, fmt.Errorf(requiredOption.customErrorMessage), true, "required", []string{}}
 		}
@@ -990,7 +1012,7 @@ func checkRequired(v reflect.Value, t reflect.StructField, options tagOptionsMap
 	return true, nil
 }
 
-func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options tagOptionsMap) (isValid bool, resultErr error) {
+func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options tagOptionsMap, operation string) (isValid bool, resultErr error) {
 	if !v.IsValid() {
 		return false, nil
 	}
@@ -1018,7 +1040,7 @@ func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options 
 
 	if isEmptyValue(v) {
 		// an empty value is not validated, check only required
-		isValid, resultErr = checkRequired(v, t, options)
+		isValid, resultErr = checkRequired(v, t, options, operation)
 		for key := range options {
 			delete(options, key)
 		}
@@ -1028,6 +1050,13 @@ func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options 
 	var customTypeErrors Errors
 	optionsOrder := options.orderedKeys()
 	for _, validatorName := range optionsOrder {
+		originalValidator := validatorName
+		validatorStruct := options[originalValidator]
+
+		if !validatorStruct.isInScope(operation) {
+			return true, nil
+		}
+
 		// If there are any params, take them off the name
 		paramAndNameRegexp := regexp.MustCompile("^([a-zA-Z0-9]*)(\\(([a-zA-Z0-9]*)\\))?$")
 		result := paramAndNameRegexp.FindStringSubmatch(validatorName)
@@ -1038,17 +1067,16 @@ func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options 
 			validatorName = result[1]
 		}
 
-		validatorStruct := options[validatorName]
 		if validatefunc, ok := CustomTypeTagMap.Get(validatorName); ok {
 			// Take any params from the name
-			delete(options, validatorName)
+			delete(options, originalValidator)
 
 			if result := validatefunc(v.Interface(), o.Interface(), params); !result {
 				if len(validatorStruct.customErrorMessage) > 0 {
-					customTypeErrors = append(customTypeErrors, Error{Name: t.Name, Err: TruncatingErrorf(validatorStruct.customErrorMessage, fmt.Sprint(v), validatorName), CustomErrorMessageExists: true, Validator: stripParams(validatorName)})
+					customTypeErrors = append(customTypeErrors, Error{Name: t.Name, Err: TruncatingErrorf(validatorStruct.customErrorMessage, fmt.Sprint(v), validatorName), CustomErrorMessageExists: true, Validator: stripParams(originalValidator)})
 					continue
 				}
-				customTypeErrors = append(customTypeErrors, Error{Name: t.Name, Err: fmt.Errorf("%s does not validate as %s", fmt.Sprint(v), validatorName), CustomErrorMessageExists: false, Validator: stripParams(validatorName)})
+				customTypeErrors = append(customTypeErrors, Error{Name: t.Name, Err: fmt.Errorf("%s does not validate as %s", fmt.Sprint(v), originalValidator), CustomErrorMessageExists: false, Validator: stripParams(originalValidator)})
 			}
 		}
 	}
@@ -1169,12 +1197,12 @@ func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options 
 			var resultItem bool
 			var err error
 			if v.MapIndex(k).Kind() != reflect.Struct {
-				resultItem, err = typeCheck(v.MapIndex(k), t, o, options)
+				resultItem, err = typeCheck(v.MapIndex(k), t, o, options, "")
 				if err != nil {
 					return false, err
 				}
 			} else {
-				resultItem, err = ValidateStruct(v.MapIndex(k).Interface())
+				resultItem, err = ValidateStruct(v.MapIndex(k).Interface(), "")
 				if err != nil {
 					err = PrependPathToErrors(err, t.Name+"."+sv[i].Interface().(string))
 					return false, err
@@ -1189,7 +1217,7 @@ func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options 
 		// If this is a UUID, we just want to convert it now. Not break it into tiny pieces with no meaning
 		if uuidData, ok := v.Interface().(uuid.UUID); ok {
 			var err error
-			result, err = typeCheck(reflect.ValueOf(uuidData.String()), t, o, options)
+			result, err = typeCheck(reflect.ValueOf(uuidData.String()), t, o, options, "")
 
 			if err != nil {
 				return false, err
@@ -1199,7 +1227,7 @@ func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options 
 		// If this is a MYUUID, we just want to convert it now. Not break it into tiny pieces with no meaning
 		if uuidData, ok := v.Interface().(charmtypes.MYUUID); ok {
 			var err error
-			result, err = typeCheck(reflect.ValueOf(uuidData.String()), t, o, options)
+			result, err = typeCheck(reflect.ValueOf(uuidData.String()), t, o, options, "")
 
 			if err != nil {
 				return false, err
@@ -1210,12 +1238,12 @@ func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options 
 			var resultItem bool
 			var err error
 			if v.Index(i).Kind() != reflect.Struct {
-				resultItem, err = typeCheck(v.Index(i), t, o, options)
+				resultItem, err = typeCheck(v.Index(i), t, o, options, "")
 				if err != nil {
 					return false, err
 				}
 			} else {
-				resultItem, err = ValidateStruct(v.Index(i).Interface())
+				resultItem, err = ValidateStruct(v.Index(i).Interface(), "")
 				if err != nil {
 					err = PrependPathToErrors(err, t.Name+"."+strconv.Itoa(i))
 					return false, err
@@ -1229,15 +1257,15 @@ func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options 
 		if v.IsNil() {
 			return true, nil
 		}
-		return ValidateStruct(v.Interface())
+		return ValidateStruct(v.Interface(), "")
 	case reflect.Ptr:
 		// If the value is a pointer then check its element
 		if v.IsNil() {
 			return true, nil
 		}
-		return typeCheck(v.Elem(), t, o, options)
+		return typeCheck(v.Elem(), t, o, options, "")
 	case reflect.Struct:
-		return ValidateStruct(v.Interface())
+		return ValidateStruct(v.Interface(), "")
 	default:
 		return false, &UnsupportedTypeError{v.Type()}
 	}

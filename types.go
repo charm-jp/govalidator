@@ -35,6 +35,21 @@ type tagOption struct {
 	name               string
 	customErrorMessage string
 	order              int
+	scope              []string
+}
+
+func (t tagOption) isInScope(scope string) bool {
+	if len(t.scope) == 0 {
+		return true
+	}
+
+	for _, sc := range t.scope {
+		if sc == scope {
+			return true
+		}
+	}
+
+	return false
 }
 
 // UnsupportedTypeError is a wrapper for reflect.Type
