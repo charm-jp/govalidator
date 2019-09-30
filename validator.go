@@ -1054,7 +1054,8 @@ func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options 
 		validatorStruct := options[originalValidator]
 
 		if !validatorStruct.isInScope(operation) {
-			return true, nil
+			delete(options, originalValidator)
+			continue
 		}
 
 		// If there are any params, take them off the name
