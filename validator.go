@@ -1058,7 +1058,7 @@ func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options 
 		}
 
 		// If there are any params, take them off the name
-		paramAndNameRegexp := regexp.MustCompile("^([a-zA-Z0-9]*)(\\(([a-zA-Z0-9]*)\\))?$")
+		paramAndNameRegexp := regexp.MustCompile("^([a-zA-Z0-9]*)(\\(([a-zA-Z0-9|]*)\\))?$")
 		result := paramAndNameRegexp.FindStringSubmatch(validatorName)
 		var params string
 
