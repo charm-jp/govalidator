@@ -764,7 +764,7 @@ func ValidateStruct(s interface{}, operation string) (bool, error) {
 		}
 		if (valueField.Kind() == reflect.Struct ||
 			(valueField.Kind() == reflect.Ptr && valueField.Elem().Kind() == reflect.Struct)) &&
-			typeField.Tag.Get(tagName) != "-" {
+			typeField.Tag.Get(tagName) != "-" && typeField.Tag.Get(tagName) != "" {
 			var err error
 			structResult, err = ValidateStruct(valueField.Interface(), operation)
 			if err != nil {
