@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"github.com/charm-jp/null"
 	"github.com/google/uuid"
 	"gitlab.dev.charm.internal/charm/charmtypes"
 	"io/ioutil"
@@ -1266,7 +1267,22 @@ func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options 
 		}
 		return typeCheck(v.Elem(), t, o, options, "")
 	case reflect.Struct:
-		return ValidateStruct(v.Interface(), "")
+		result := true
+
+		// Work out if we're dealing with a real struct or a null struct which has a string method
+		switch v.Interface().(type) {
+		case null.String, null.Int:
+			var err error
+			result, err = typeCheck(v.MethodByName("String"), t, o, options, operation)
+
+			if err != nil {
+				return false, err
+			}
+		default:
+			return ValidateStruct(v.Interface(), operation)
+		}
+
+		return result, nil
 	default:
 		return false, &UnsupportedTypeError{v.Type()}
 	}
