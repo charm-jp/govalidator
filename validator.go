@@ -1271,11 +1271,20 @@ func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options 
 
 		// Work out if we're dealing with a real struct or a null struct which has a string method
 		switch v.Interface().(type) {
-		case null.String, null.Int:
+		case null.String:
 			var err error
-			result, err = typeCheck(v.MethodByName("String"), t, o, options, operation)
+			value := reflect.ValueOf(v.Interface().(null.String).String)
 
-			if err != nil {
+			result, err = typeCheck(value, t, o, options, operation)
+			if !result {
+				return false, err
+			}
+		case null.Int:
+			var err error
+			value := reflect.ValueOf(v.Interface().(null.Int).Int64)
+
+			result, err = typeCheck(value, t, o, options, operation)
+			if !result {
 				return false, err
 			}
 		default:
