@@ -1282,7 +1282,7 @@ func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options 
 			var err error
 			value := reflect.ValueOf(v.Interface().(null.String).String)
 
-			result, err = typeCheck(value, t, o, options, operation)
+			result, err = typeCheck(value, t, o, options, request)
 			if !result {
 				return false, err
 			}
@@ -1290,7 +1290,7 @@ func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options 
 			var err error
 			value := reflect.ValueOf(v.Interface().(null.Int).Int64)
 
-			result, err = typeCheck(value, t, o, options, operation)
+			result, err = typeCheck(value, t, o, options, request)
 			if !result {
 				return false, err
 			}
