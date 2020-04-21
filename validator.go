@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"github.com/charm-jp/null"
 	"github.com/google/uuid"
+	"gitlab.dev.charm.internal/charm/api2go"
 	"gitlab.dev.charm.internal/charm/charmtypes"
 	"io/ioutil"
 	"net"
@@ -732,13 +733,12 @@ func PrependPathToErrors(err error, path string) error {
 		}
 		return err2
 	}
-	fmt.Println(err)
 	return err
 }
 
 // ValidateStruct use tags for fields.
 // result will be equal to `false` if there are any errors.
-func ValidateStruct(s interface{}, operation string) (bool, error) {
+func ValidateStruct(s interface{}, request *api2go.Request) (bool, error) {
 	if s == nil {
 		return true, nil
 	}
@@ -767,13 +767,13 @@ func ValidateStruct(s interface{}, operation string) (bool, error) {
 			(valueField.Kind() == reflect.Ptr && valueField.Elem().Kind() == reflect.Struct)) &&
 			typeField.Tag.Get(tagName) != "-" && typeField.Tag.Get(tagName) != "" {
 			var err error
-			structResult, err = ValidateStruct(valueField.Interface(), operation)
+			structResult, err = ValidateStruct(valueField.Interface(), request)
 			if err != nil {
 				err = PrependPathToErrors(err, typeField.Name)
 				errs = append(errs, err)
 			}
 		}
-		resultField, err2 := typeCheck(valueField, typeField, val, nil, operation)
+		resultField, err2 := typeCheck(valueField, typeField, val, nil, request)
 		if err2 != nil {
 
 			// Replace structure name with JSON name if there is a tag on the variable
@@ -1013,12 +1013,13 @@ func checkRequired(v reflect.Value, t reflect.StructField, options tagOptionsMap
 	return true, nil
 }
 
-func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options tagOptionsMap, operation string) (isValid bool, resultErr error) {
+func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options tagOptionsMap, request *api2go.Request) (isValid bool, resultErr error) {
 	if !v.IsValid() {
 		return false, nil
 	}
 
 	tag := t.Tag.Get(tagName)
+	operation := ""
 
 	// Check if the field should be ignored
 	switch tag {
@@ -1037,6 +1038,12 @@ func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options 
 	if options == nil {
 		isRootType = true
 		options = parseTagIntoMap(tag)
+	}
+
+	if request != nil {
+		if request.PlainRequest != nil {
+			operation = request.PlainRequest.Method
+		}
 	}
 
 	if isEmptyValue(v) {
@@ -1073,7 +1080,7 @@ func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options 
 			// Take any params from the name
 			delete(options, originalValidator)
 
-			if result := validatefunc(v.Interface(), o.Interface(), params); !result {
+			if result := validatefunc(v.Interface(), o.Interface(), request, params); !result {
 				if len(validatorStruct.customErrorMessage) > 0 {
 					customTypeErrors = append(customTypeErrors, Error{Name: t.Name, Err: TruncatingErrorf(validatorStruct.customErrorMessage, fmt.Sprint(v), validatorName), CustomErrorMessageExists: true, Validator: stripParams(originalValidator)})
 					continue
@@ -1199,12 +1206,12 @@ func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options 
 			var resultItem bool
 			var err error
 			if v.MapIndex(k).Kind() != reflect.Struct {
-				resultItem, err = typeCheck(v.MapIndex(k), t, o, options, "")
+				resultItem, err = typeCheck(v.MapIndex(k), t, o, options, nil)
 				if err != nil {
 					return false, err
 				}
 			} else {
-				resultItem, err = ValidateStruct(v.MapIndex(k).Interface(), "")
+				resultItem, err = ValidateStruct(v.MapIndex(k).Interface(), nil)
 				if err != nil {
 					err = PrependPathToErrors(err, t.Name+"."+sv[i].Interface().(string))
 					return false, err
@@ -1219,7 +1226,7 @@ func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options 
 		// If this is a UUID, we just want to convert it now. Not break it into tiny pieces with no meaning
 		if uuidData, ok := v.Interface().(uuid.UUID); ok {
 			var err error
-			result, err = typeCheck(reflect.ValueOf(uuidData.String()), t, o, options, "")
+			result, err = typeCheck(reflect.ValueOf(uuidData.String()), t, o, options, nil)
 
 			if err != nil {
 				return false, err
@@ -1229,7 +1236,7 @@ func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options 
 		// If this is a MYUUID, we just want to convert it now. Not break it into tiny pieces with no meaning
 		if uuidData, ok := v.Interface().(charmtypes.MYUUID); ok {
 			var err error
-			result, err = typeCheck(reflect.ValueOf(uuidData.String()), t, o, options, "")
+			result, err = typeCheck(reflect.ValueOf(uuidData.String()), t, o, options, nil)
 
 			if err != nil {
 				return false, err
@@ -1240,12 +1247,12 @@ func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options 
 			var resultItem bool
 			var err error
 			if v.Index(i).Kind() != reflect.Struct {
-				resultItem, err = typeCheck(v.Index(i), t, o, options, "")
+				resultItem, err = typeCheck(v.Index(i), t, o, options, nil)
 				if err != nil {
 					return false, err
 				}
 			} else {
-				resultItem, err = ValidateStruct(v.Index(i).Interface(), "")
+				resultItem, err = ValidateStruct(v.Index(i).Interface(), nil)
 				if err != nil {
 					err = PrependPathToErrors(err, t.Name+"."+strconv.Itoa(i))
 					return false, err
@@ -1259,13 +1266,13 @@ func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options 
 		if v.IsNil() {
 			return true, nil
 		}
-		return ValidateStruct(v.Interface(), "")
+		return ValidateStruct(v.Interface(), request)
 	case reflect.Ptr:
 		// If the value is a pointer then check its element
 		if v.IsNil() {
 			return true, nil
 		}
-		return typeCheck(v.Elem(), t, o, options, "")
+		return typeCheck(v.Elem(), t, o, options, request)
 	case reflect.Struct:
 		result := true
 
@@ -1273,13 +1280,13 @@ func typeCheck(v reflect.Value, t reflect.StructField, o reflect.Value, options 
 		switch v.Interface().(type) {
 		case null.String, null.Int:
 			var err error
-			result, err = typeCheck(v.MethodByName("String"), t, o, options, operation)
+			result, err = typeCheck(v.MethodByName("String"), t, o, options, request)
 
 			if err != nil {
 				return false, err
 			}
 		default:
-			return ValidateStruct(v.Interface(), operation)
+			return ValidateStruct(v.Interface(), request)
 		}
 
 		return result, nil

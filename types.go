@@ -1,6 +1,7 @@
 package govalidator
 
 import (
+	"gitlab.dev.charm.internal/charm/api2go"
 	"reflect"
 	"regexp"
 	"sort"
@@ -12,7 +13,7 @@ type Validator func(str string) bool
 
 // CustomTypeValidator is a wrapper for validator functions that returns bool and accepts any type.
 // The second parameter should be the context (in the case of validating a struct: the whole object being validated).
-type CustomTypeValidator func(i interface{}, o interface{}, params string) bool
+type CustomTypeValidator func(fieldValue interface{}, contextObject interface{}, api2goRequest *api2go.Request, params string) bool
 
 // ParamValidator is a wrapper for validator functions that accepts additional parameters.
 type ParamValidator func(str string, params ...string) bool
