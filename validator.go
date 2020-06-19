@@ -1211,7 +1211,7 @@ func typeCheck(ctx context.Context, v reflect.Value, t reflect.StructField, o re
 			var resultItem bool
 			var err error
 			if v.MapIndex(k).Kind() != reflect.Struct {
-				resultItem, err = typeCheck(nil, v.MapIndex(k), t, o, options, nil)
+				resultItem, err = typeCheck(ctx, v.MapIndex(k), t, o, options, nil)
 				if err != nil {
 					return false, err
 				}
@@ -1231,7 +1231,7 @@ func typeCheck(ctx context.Context, v reflect.Value, t reflect.StructField, o re
 		// If this is a UUID, we just want to convert it now. Not break it into tiny pieces with no meaning
 		if uuidData, ok := v.Interface().(uuid.UUID); ok {
 			var err error
-			result, err = typeCheck(nil, reflect.ValueOf(uuidData.String()), t, o, options, nil)
+			result, err = typeCheck(ctx, reflect.ValueOf(uuidData.String()), t, o, options, nil)
 
 			if err != nil {
 				return false, err
@@ -1241,7 +1241,7 @@ func typeCheck(ctx context.Context, v reflect.Value, t reflect.StructField, o re
 		// If this is a MYUUID, we just want to convert it now. Not break it into tiny pieces with no meaning
 		if uuidData, ok := v.Interface().(charmtypes.MYUUID); ok {
 			var err error
-			result, err = typeCheck(nil, reflect.ValueOf(uuidData.String()), t, o, options, nil)
+			result, err = typeCheck(ctx, reflect.ValueOf(uuidData.String()), t, o, options, nil)
 
 			if err != nil {
 				return false, err
@@ -1252,7 +1252,7 @@ func typeCheck(ctx context.Context, v reflect.Value, t reflect.StructField, o re
 			var resultItem bool
 			var err error
 			if v.Index(i).Kind() != reflect.Struct {
-				resultItem, err = typeCheck(nil, v.Index(i), t, o, options, nil)
+				resultItem, err = typeCheck(ctx, v.Index(i), t, o, options, nil)
 				if err != nil {
 					return false, err
 				}
@@ -1277,7 +1277,7 @@ func typeCheck(ctx context.Context, v reflect.Value, t reflect.StructField, o re
 		if v.IsNil() {
 			return true, nil
 		}
-		return typeCheck(nil, v.Elem(), t, o, options, request)
+		return typeCheck(ctx, v.Elem(), t, o, options, request)
 	case reflect.Struct:
 		result := true
 
@@ -1287,7 +1287,7 @@ func typeCheck(ctx context.Context, v reflect.Value, t reflect.StructField, o re
 			var err error
 			value := reflect.ValueOf(v.Interface().(null.String).String)
 
-			result, err = typeCheck(nil, value, t, o, options, request)
+			result, err = typeCheck(ctx, value, t, o, options, request)
 			if !result {
 				return false, err
 			}
@@ -1295,7 +1295,7 @@ func typeCheck(ctx context.Context, v reflect.Value, t reflect.StructField, o re
 			var err error
 			value := reflect.ValueOf(v.Interface().(null.Int).Int64)
 
-			result, err = typeCheck(nil, value, t, o, options, request)
+			result, err = typeCheck(ctx, value, t, o, options, request)
 			if !result {
 				return false, err
 			}
