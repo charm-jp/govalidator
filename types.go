@@ -2,7 +2,7 @@ package govalidator
 
 import (
 	"context"
-	"gitlab.dev.charm.internal/charm/api2go"
+	"github.com/charm-jp/api2go"
 	"reflect"
 	"regexp"
 	"sort"
